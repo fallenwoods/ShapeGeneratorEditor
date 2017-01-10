@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Shape Generator</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+  <link rel="stylesheet" href="tinkerStuff/jquery-ui.css">
+  <link rel="stylesheet" href="tinkerStuff/demo.css">
+  <style>
+    fieldset {
+      border: 0;
+    }
+    label {
+      display: block;
+      margin: 30px 0 0 0;
+    }
+	.aligner * {
+	  vertical-align: middle;
+	}
+	.param_label {
+		display: inline;
+	}
+	.paramHandle * {
+		text-align: center;
+		width: 50px;
+	}
+    .overflow {
+      height: 200px;
+    }
+  </style>
+  <!-- script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+  <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script -->
+  <script src="libs/jquery.js"></script>
+  <script src="libs/jquery-ui.js"></script>
+  <script src="js/parameters.js"></script>
+  <script src="examples/spokeGap.js"></script>
+		<script>
+		$( function() {
+		$( "#speed" ).selectmenu(
+		{
+			change: function( event, ui ) { 
+			console.log (event.type+':'+ui.label)}
+		}
+		);
+
+		$( "#files" ).selectmenu(	{
+			change: function( event, ui ) { 
+			console.log (event.type+':'+ui.label+':'+ui.value)}
+		}
+		);
+
+		$( "#number" )
+		  .selectmenu()
+		  .selectmenu( "menuWidget" )
+			.addClass( "overflow" );
+
+		$( "#salutation" ).selectmenu();
+		} );
+		</script>
+
+		<script src="libs/three.js"></script>
+		<script src="libs/OBJExporter.js"></script>
+		<script src="libs/OrbitControls.js"></script>
+		<script src="js/tinkerToThree.js"></script>
+
+	</head>
+
+	<body>
+	
+<table>
+	<col width="80">
+	<tr>
+		<td valign="top">
+			<input type="file" id="importFile" onchange="attachFile(files)">
+			<div id="parameters"></div>
+			<input id="export" type="button" value="Capture" onclick="captureMesh();"/>
+			<a id='download' download='Extruder.obj' type='text/plain'>Download</a>
+		</td>
+		<td>
+			<td id='renderer'></td> 
+		</td>
+	<tr>
+</table>
+		<script>
+
+var container;
+var editors=[];
+
+var camera, scene, renderer, controls, material, material2;
+
+
+
+var CustomSinCurve = THREE.Curve.create(
+	function ( scale ) { //custom curve constructor
+
+		this.scale = ( scale === undefined ) ? 1 : scale;
+
+	},
+	function ( t ) { //getPoint: t is between 0-1
+
+		var tx = Math.sin(t*4*Math.PI)
+		var ty = Math.cos(t*4*Math.PI)
+		var tz = 4*t;
+
+		return new THREE.Vector3( tx, ty, tz ).multiplyScalar( this.scale );
+
+	}
+);
+var sceneUpdated = true;
+init();
+//animate();	
+//render();
+var file = []
+//file.push({name:"boxWithHoles.js"});
+file.push({name:"gearsWithHoles.js"})
+
+attachFile(file);		//fixme debug
+
+
+function init() {
+
+	//editors.push(new CurveEditor(".crossSection",{isClosed:true,range:[-2,2],callback:crossSectionCallback,handleChoiceIndx:1}));
+	//editors.push(new CurveEditor(".scale",{range:[2,-2],callback:scaleCallback,handleChoiceIndx:11,origin:[-1,0]}));
+	//editors.push(new CurveEditor(".rotation",{range:[-1.1,1.1],callback:rotationCallback}));
+	//editors.push(new CurveEditor(".spine",{range:[-2,2],callback:spineCallback,handleChoiceIndx:11}));
+
+	var info = document.createElement( 'div' );
+	info.style.position = 'absolute';
+	info.style.top = '10px';
+	info.style.width = '100%';
+	info.style.textAlign = 'center';
+	info.style.color = '#fff';
+	info.style.link = '#f80';
+	//info.innerHTML = '<a href="http://threejs.org" target="_blank">three.js</a> webgl - geometry extrude shapes';
+	
+	document.body.appendChild( info );
+
+	renderer = new THREE.WebGLRenderer();
+	renderer.setClearColor( 0xaaaaaa );
+	renderer.setPixelRatio( window.devicePixelRatio );
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	var insertPoint = document.getElementById('renderer');
+	//document.body.appendChild( renderer.domElement );
+	insertPoint.appendChild( renderer.domElement );
+
+	scene = new THREE.Scene();
+
+	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
+	camera.position.set( 100,100,100 );
+	
+	//camera.rotateX(Math.PI/2);
+
+	//controls = new THREE.TrackballControls( camera, renderer.domElement );
+	//controls.minDistance = 200;
+	//controls.maxDistance = 500;
+	
+	//controls = new THREE.TJMOrbitControls( camera, renderer.domElement );
+	controls = new THREE.OrbitControls( camera, renderer.domElement );
+	//controls.minPolarAngle = -Math.PI * 0.5;
+	//controls.maxPolarAngle = Math.PI * 0.5;
+	controls.minDistance = 5;
+	controls.maxDistance = 500;
+	controls.target.set( 0, 0, 0 );
+	controls.addEventListener( 'change', render );
+
+	//scene.add( new THREE.AmbientLight( 0x999999 ) );
+
+	var light;
+	light = new THREE.DirectionalLight( 0xffffff,1 );
+	light.position.set( -500,500,-500 );
+	scene.add( light );
+	light = new THREE.DirectionalLight( 0xffffff,0.7 );
+	light.position.set( -500,500,500 );
+	scene.add( light );
+	light = new THREE.DirectionalLight( 0xffffff,0.7 );
+	light.position.set( 500,500,-500 );
+	scene.add( light );
+	light = new THREE.DirectionalLight( 0xffffff,0.5 );
+	light.position.set( 500,500,500 );
+	scene.add( light );
+	
+	var sphere = new THREE.SphereGeometry( 0.5, 16, 8 );
+	var light1 = new THREE.PointLight( 0xff0040, 2, 50 );
+	light1.add( new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( { color: 0xff0040 } ) ) );
+	//scene.add( light1 );
+	
+	//scene.add( new THREE.HemisphereLight( 0x007777 ) );
+	
+	
+	//var material = new THREE.MeshLambertMaterial( { color: 0xb00000, wireframe: false,side: THREE.DoubleSide } );
+	//var material = new THREE.MeshLambertMaterial( { color: 0xb00000, wireframe: false } );
+	//material = new THREE.MeshPhongMaterial( { color: 0x550000, specular: 0x444444, shininess: 80, transparent:false, opacity:0.6, side:THREE.DoubleSide, wireframe: false}  );
+	material = new THREE.MeshLambertMaterial( { color: 0xff8000, wireframe: false, side:THREE.DoubleSide } );
+	
+	
+	var axisHelper = new THREE.AxisHelper( 30 );
+	scene.add( axisHelper );	
+	
+	var gridHelper = new THREE.GridHelper( 50,100, 0x8888FF, 0x444499 );
+	scene.add( gridHelper );	
+}
+// End scene configuration
+
+
+
+ function handlesToPath(handleChoice) {	
+ 
+	if(!handleChoice.useHandles) return handleChoice.curve;
+
+	var result = new THREE.Shape();
+	var handles = handleChoice.getObjectHandles();
+	
+	// Move to the first point
+	result.moveTo(handles[0].pt[0],handles[0].pt[1]);
+	
+	// Create the first cubic spline, first cp is the first point
+	result.bezierCurveTo(
+		handles[0].pt[0]-handles[0].cpOffset[0],handles[0].pt[1]-handles[0].cpOffset[1],
+		handles[1].pt[0]+handles[1].cpOffset[0],handles[1].pt[1]+handles[1].cpOffset[1],
+		handles[1].pt[0],handles[1].pt[1]
+		);
+
+	
+	// add the rest of the cubic splines
+	for(var i = 2; i < handles.length;i++){
+		result.bezierCurveTo(
+			handles[i-1].pt[0]-handles[i-1].cpOffset[0],handles[i-1].pt[1]-handles[i-1].cpOffset[1],
+			handles[i].pt[0]+handles[i].cpOffset[0],handles[i].pt[1]+handles[i].cpOffset[1],
+			handles[i].pt[0],handles[i].pt[1]
+			);
+	}
+	if (handleChoice.isClosed){
+		var last = handles.length-1;
+		result.bezierCurveTo(
+			handles[last].pt[0]-handles[last].cpOffset[0],handles[last].pt[1]-handles[last].cpOffset[1],
+			handles[0].pt[0]+handles[0].cpOffset[0],handles[0].pt[1]+handles[0].cpOffset[1],
+			handles[0].pt[0],handles[0].pt[1]
+			);
+	}
+	return result;
+}			
+
+function loadObject(objectStr) {
+
+	
+	//fixme - the callbacks for redrawing get lost in this process.
+	// fixme - origin and slider don't get redrawn (they are not part of the redraw code.
+	var parsed = JSON.parse(objectStr);
+	editors = [];
+	editors.push(CurveEditor.fromJSON(".crossSection", crossSectionCallback, parsed[0]));
+	editors.push(CurveEditor.fromJSON(".scale", scaleCallback, parsed[1]));
+	editors.push(CurveEditor.fromJSON(".rotation", rotationCallback, parsed[2]));
+	editors.push(CurveEditor.fromJSON(".spine", spineCallback, parsed[3]));
+	sceneUpdated = true;
+
+}
+		function update(scene,material){
+				if (scene.editorObject) {
+					scene.remove(scene.getObjectById(scene.editorObject[0]))
+					scene.remove(scene.getObjectById(scene.editorObject[1]))
+				}
+				/*
+				  $( function() {
+						var handle = $( "#param2-handle" );
+						$( "#param2" ).slider({
+							//range: "max",
+							min: params[0].rangeMin,
+							max: params[0].rangeMax,
+							value: params[0].default,
+							create: function() {
+								handle.text( $( this ).slider( "value" ) );
+							},
+							slide: function( event, ui ) {
+								handle.text( ui.value );
+							}
+						});
+						$( "#paramLabel2" ).prop('textContent', params[0].displayName+':' );
+					  } );
+					  */
+				var pms = Core.processParams(params)
+				
+				//***
+				var geo = process(pms)
+				//***
+				
+				var mesh = new THREE.Mesh( geo, material );
+				scene.add( mesh );	
+				
+				var normals = new THREE.FaceNormalsHelper( mesh, 1, 0xff0000, 1 );
+				//scene.add( normals );	
+				
+				scene.editorObject = [mesh.id,normals.id]
+				
+				return scene;
+			}
+
+			function render() {
+			var i =0;
+
+				//requestAnimationFrame( animate );
+
+				//controls.update();
+
+				// add interaction update to condition
+				// call update if this is set
+				//if(controls.isUpdated() || sceneUpdated){
+					if (sceneUpdated){
+						sceneUpdated = false;
+						scene = update(scene,material);
+					}
+
+					renderer.render( scene, camera );
+					console.log(i++);
+				//}
+				
+
+			}
+			
+			//* write mesh text to a new window
+			function captureMesh() {
+				var exporter = new THREE.OBJExporter();
+				var mesh = scene.getObjectById(scene.editorObject[0]);
+				if(mesh){
+					var result = exporter.parse( mesh );
+
+					var data = new Blob([result]);
+					var download = document.getElementById('download');
+					download.href = URL.createObjectURL(data);	// fixme- after creating the href, can we auto-click it to start the download? Can we hide the href?
+
+				}
+			}
+
+			function importFile(files) {
+				//var files = evt.target.files; // FileList object
+				var f = files[0];	// we only load one
+
+				if (!f.name.endsWith(".obj")) return;
+				var reader = new FileReader();
+				
+				// Closure to capture the file information.
+				reader.onload = (function(theFile) {
+				return function(e) {
+				  var file = theFile;
+				  // Render thumbnail.
+				  //console.log ("read file: "+escape(theFile.name));
+				  var JSONStr = e.target.result.substring('#EditorSettings '.length,e.target.result.indexOf('\n'));
+				  loadObject(JSONStr);
+				};
+				})(f);
+
+				// Read in the image file as a data URL.
+				reader.readAsText(f);
+			}
+
+			//document.getElementById('files').addEventListener('change', importFile, false);
+			//*/
+
+			function attachFile(files) {
+
+				var script = document.createElement('script');
+				script.src = 'examples/'+files[0].name;
+				script.onload = function(){
+					console.log('script loaded');
+					sceneUpdated = true;	
+					Parameters(params,$('#parameters'),updateParams);
+					render();
+				}
+				document.head.appendChild(script);
+
+
+			}
+			function updateParams(id,value){
+				for(var i = 0; i < params.length;i++){
+					if(params[i].id === id){
+						params[i].default = value;
+						sceneUpdated = true;
+						render();
+						break;
+					}
+				}
+			}
+
+		</script>
+
+	</body>
+
+</html>
