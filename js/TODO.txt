@@ -1,0 +1,5 @@
+TODO:
+	- create an othographic projection for debug
+	- allow show edges, normals and mesh
+	
+	

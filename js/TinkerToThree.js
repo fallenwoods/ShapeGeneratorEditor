@@ -175,14 +175,16 @@ Core.Path2D.prototype = {
 	}
 
 }
-Core.Matrix2D = function (){
-	this.transform = new Matrix4();		// Shape is a Path subclass that is compatible with the Extruder class
+Core.Matrix3D = function (){
+	this.transform = new THREE.Matrix4();		// Shape is a Path subclass that is compatible with the Extruder class
 
 }
-Core.Matrix2D.prototype = {
-	rotation:function(a){this.transform.makeRotationZ(a); return this;},
-	translation:function(x,y){this.transform.makeTranslation(x,y,0); return this;},
-	scaling:function(x,y){this.transform.makeScale(x,y,1); return this;},
+Core.Matrix3D.prototype = {
+	rotationX:function(a){this.transform.multiply(new THREE.Matrix4().makeRotationX(a)); return this;},
+	rotationY:function(a){this.transform.multiply(new THREE.Matrix4().makeRotationY(a)); return this;},
+	rotationZ:function(a){this.transform.multiply(new THREE.Matrix4().makeRotationZ(a)); return this;},
+	translation:function(x,y,z){this.transform.multiply(new THREE.Matrix4().makeTranslation(x,y,z)); return this;},
+	scaling:function(x,y,z){this.transform.multiply(new THREE.Matrix4().makeScale(x,y,z)); return this;},
 	identity:function(){ this.transform = new Matrix4(); return this;},
 	transform:function(matrix){this.transform.multiply(matrix);return this;}
 }

@@ -6,6 +6,10 @@ npm-debug.log*
 #notepad++
 *.bak
 
+#excel
+.xlsx
+.csv
+
 # Runtime data
 pids
 *.pid
