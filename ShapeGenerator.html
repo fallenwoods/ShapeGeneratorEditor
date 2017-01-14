@@ -146,7 +146,14 @@ function init() {
 	scene = new THREE.Scene();
 
 	camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
-	camera.position.set( 100,100,100 );
+	camera.position.set( 30,30,30);//100,100,100 );
+	
+	// fixme - the camera is centered on the browser window rather than the element that contains the canvas
+	//camera = new THREE.OrthographicCamera( 
+	//	-100 ,100,
+	//	-100 * window.innerHeight/window.innerWidth ,100 * window.innerHeight/window.innerWidth,
+	//	100, -100);//left, right, top, bottom, near, far )
+	//camera.position.set( 0,-50,0 );
 	
 	//camera.rotateX(Math.PI/2);
 
@@ -179,9 +186,9 @@ function init() {
 	light.position.set( 500,500,500 );
 	scene.add( light );
 	
-	var sphere = new THREE.SphereGeometry( 0.5, 16, 8 );
-	var light1 = new THREE.PointLight( 0xff0040, 2, 50 );
-	light1.add( new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( { color: 0xff0040 } ) ) );
+	//var sphere = new THREE.SphereGeometry( 0.5, 16, 8 );
+	//var light1 = new THREE.PointLight( 0xff0040, 2, 50 );
+	//light1.add( new THREE.Mesh( sphere, new THREE.MeshBasicMaterial( { color: 0xff0040 } ) ) );
 	//scene.add( light1 );
 	
 	//scene.add( new THREE.HemisphereLight( 0x007777 ) );
@@ -255,9 +262,9 @@ function loadObject(objectStr) {
 
 }
 		function update(scene,material){
-				if (scene.editorObject) {
-					scene.remove(scene.getObjectById(scene.editorObject[0]))
-					scene.remove(scene.getObjectById(scene.editorObject[1]))
+				scene.editorObject = scene.editorObject || [];
+				for (var i =0; i <scene.editorObject.length; i++) {
+					scene.remove(scene.getObjectById(scene.editorObject[i]));
 				}
 				/*
 				  $( function() {
@@ -277,19 +284,39 @@ function loadObject(objectStr) {
 						$( "#paramLabel2" ).prop('textContent', params[0].displayName+':' );
 					  } );
 					  */
-				var pms = Core.processParams(params)
+				var pms;
+				//shapeGeneratorDefaults(function(params){
+					pms = Core.processParams(params);
+				//});
+				
 				
 				//***
-				var geo = process(pms)
+				var geo;
+				geo = process(pms);
+				//shapeGeneratorEvaluate(pms,function(geometry){ 
+				//	geo = geometry;
+				//});
 				//***
 				
 				var mesh = new THREE.Mesh( geo, material );
-				scene.add( mesh );	
+				scene.add( mesh );
+				scene.editorObject.push(mesh.id);
 				
-				var normals = new THREE.FaceNormalsHelper( mesh, 1, 0xff0000, 1 );
-				//scene.add( normals );	
+				var debug = false;
+				if(debug) {
+					debugScene = new THREE.Scene();
+					if(geo.debug){
+						var debugLine = new THREE.Line( geo.debug, new THREE.LineBasicMaterial({color: 0xFFFF00}) );
+						debugScene.add( debugLine );
+					}
+					var normals = new THREE.FaceNormalsHelper( mesh, 1, 0xff0000, 1 );
+					debugScene.add( normals );	
+					scene.add(debugScene);
+					scene.editorObject.push(debugScene.id);
+				}
+	
 				
-				scene.editorObject = [mesh.id,normals.id]
+
 				
 				return scene;
 			}

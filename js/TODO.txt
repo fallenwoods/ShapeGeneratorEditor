@@ -1,5 +1,8 @@
 TODO:
-	- create an othographic projection for debug
-	- allow show edges, normals and mesh
-	
+	- create a web based printer server using the Raspberry PI
+	- adjust print head to be less close to the table
+	- write software to get the screw turns to level the table
+	- try using ThreeCSG.js in generators
+	- Try one of my generators in Tinkercad
+	- change to the async calls style
 	
