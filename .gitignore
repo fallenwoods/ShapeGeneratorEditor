@@ -7,8 +7,8 @@ npm-debug.log*
 *.bak
 
 #excel
-.xlsx
-.csv
+*.xlsx
+*.csv
 
 # Runtime data
 pids
