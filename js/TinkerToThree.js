@@ -218,3 +218,10 @@ Core.Matrix3D.prototype = {
 
 
 //export Core;
+
+var Mesh3D = Core.Mesh3D;
+//var Path2D = Core.Path2D;
+var Matrix3D = Core.Matrix3D;
+var Tess = Core.Tess;
+var Solid = Core.Solid;
+var Debug = Core.Debug;

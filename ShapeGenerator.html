@@ -284,19 +284,22 @@ function loadObject(objectStr) {
 						$( "#paramLabel2" ).prop('textContent', params[0].displayName+':' );
 					  } );
 					  */
+					  
+// !!!!!!!!!!!!!!!!!					  
 				var pms;
-				//shapeGeneratorDefaults(function(params){
-					pms = Core.processParams(params);
-				//});
-				
-				
-				//***
 				var geo;
-				geo = process(pms);
-				//shapeGeneratorEvaluate(pms,function(geometry){ 
-				//	geo = geometry;
-				//});
-				//***
+				if(this.shapeGeneratorDefaults){
+					shapeGeneratorDefaults(function(params){
+						pms = Core.processParams(params);
+					});
+						shapeGeneratorEvaluate(pms,function(geometry){ 
+							geo = geometry;
+						});
+				} else {
+					pms = Core.processParams(params);
+					geo = process(pms);
+				}
+// !!!!!!!!!!!!!!!!!	
 				
 				var mesh = new THREE.Mesh( geo, material );
 				scene.add( mesh );
@@ -384,6 +387,8 @@ function loadObject(objectStr) {
 
 			function attachFile(files) {
 
+				window.shapeGeneratorDefaults = undefined;		// make sure we get the new file once loaded
+				
 				var script = document.createElement('script');
 				script.src = 'examples/'+files[0].name;
 				script.onload = function(){

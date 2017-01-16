@@ -10,14 +10,7 @@ var ceil = Math.ceil;
 var floor = Math.floor;
 var max = Math.max;
 
-/*
-var Mesh3D = Core.Mesh3D;
-//var Path2D = Core.Path2D;
-var Matrix3D = Core.Matrix3D;
-var Tess = Core.Tess;
-var Solid = Core.Solid;
-var Debug = Core.Debug;
-//*/
+
 
 /*
 Params
@@ -161,14 +154,42 @@ function shapeGeneratorEvaluate(params, callback) {
 	var standard = params["standard"];		// us or metric
 	var coarseness = params["coarseness"];	// coarse, fine or extraFine
 	var l = params["length"];				// inches or mm
+	var fudge = 0.1;						// added to major radius to provide clearance for screw. Derived empically
+	
+		function Polyline3D(){
+		this.pts=[];
+		this.mat = new Matrix3D();
+		if(arguments.length === 0) return;
+		var argAry = typeof arguments[0][0] === 'object' ? Array.prototype.slice.call(arguments[0]) : Array.prototype.slice.call(arguments);
+		if(argAry.length>0) argAry.forEach(function(el,i){
+			this.pts.push(new THREE.Vector3(argAry[i][0],argAry[i][1],argAry[i][2]));
+			}.bind(this));
+	}
+	Polyline3D.prototype = {
+		copy:function(other){
+			this.pts = other.pts.slice();
+			this.mat.transform.elements = other.mat.transform.elements.slice();
+			return this;
+		},
+		clone: function(){return new Polyline3D().copy(this);},
+		translation: function(x,y,z){this.mat.translation(x,y,z); return this;},
+		rotationX:function(a){this.mat.rotationX(a); return this;},
+		rotationY:function(a){this.mat.rotationY(a); return this;},
+		rotationZ:function(a){this.mat.rotationZ(a); return this;},
+		points:function(){
+			 return this.pts.map(function(el,i){
+				var tmp = el.clone().applyMatrix4(this.mat.transform);
+				 return [tmp.x,tmp.y,tmp.z];}.bind(this));
+		}
+	};
 
 	var p,d;
 	if(standard==='u'){
 		p = (1/screwTable[standard][usScrewSize][coarseness]) * mmPerInch;	// pitch convert Threads per inch to inch per thread and then to mm
-		d = screwTable[standard][usScrewSize].diameter * mmPerInch;		// diameter (Dmaj) in mm
+		d = screwTable[standard][usScrewSize].diameter * mmPerInch + fudge;		// diameter (Dmaj) in mm
 	} else {
 		p = screwTable[standard][metrixScrewSize][coarseness];	// pitch
-		d = screwTable[standard][metrixScrewSize].diameter;		// diameter (Dmaj)
+		d = screwTable[standard][metrixScrewSize].diameter + fudge;		// diameter (Dmaj)
 	}
 	var h = p * cos(2*PI/12);		// cos(30) degrees. Height from reference bottom to reference top, top and bottom are cut off for real thread
 
@@ -234,38 +255,14 @@ function shapeGeneratorEvaluate(params, callback) {
 	
 	//mesh.combine(mesh);
 	callback(Solid.make(mesh));
-}
-function Polyline3D(){
-	this.pts=[];
-	this.mat = new Matrix3D();
-	if(arguments.length === 0) return;
-	var argAry = typeof arguments[0][0] === 'object' ? Array.prototype.slice.call(arguments[0]) : Array.prototype.slice.call(arguments);
-	if(argAry.length>0) argAry.forEach(function(el,i){
-		this.pts.push(new THREE.Vector3(argAry[i][0],argAry[i][1],argAry[i][2]));
-		}.bind(this));
-}
-Polyline3D.prototype = {
-	copy:function(other){
-		this.pts = other.pts.slice();
-		this.mat.transform.elements = other.mat.transform.elements.slice();
-		return this;
-	},
-	clone: function(){return new Polyline3D().copy(this);},
-	translation: function(x,y,z){this.mat.translation(x,y,z); return this;},
-	rotationX:function(a){this.mat.rotationX(a); return this;},
-	rotationY:function(a){this.mat.rotationY(a); return this;},
-	rotationZ:function(a){this.mat.rotationZ(a); return this;},
-	points:function(){
-		 return this.pts.map(function(el,i){
-		 	var tmp = el.clone().applyMatrix4(this.mat.transform);
-			 return [tmp.x,tmp.y,tmp.z];}.bind(this));
-	}
-};
-function makeMesh(mesh,priorPts,currentPts){
-	//var priorPts = prior.points();	// gets transformed points
-	//var currentPts = current.points();
-	for(var i = 0; i < priorPts.length-1;i++){
-		mesh.triangle(priorPts[i],currentPts[i],priorPts[i+1]);
-		mesh.triangle(priorPts[i+1],currentPts[i],currentPts[i+1]);
+
+
+	function makeMesh(mesh,priorPts,currentPts){
+		//var priorPts = prior.points();	// gets transformed points
+		//var currentPts = current.points();
+		for(var i = 0; i < priorPts.length-1;i++){
+			mesh.triangle(priorPts[i],currentPts[i],priorPts[i+1]);
+			mesh.triangle(priorPts[i+1],currentPts[i],currentPts[i+1]);
+		}
 	}
 }
