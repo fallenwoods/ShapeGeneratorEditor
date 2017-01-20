@@ -1,5 +1,14 @@
 TODO:
-	- create an othographic projection for debug
+
 	- allow show edges, normals and mesh
-	
+	- modify the extrusion editor to create closed shapes for open ended figures (dual layer)
+	- get my generators working
+	- get CGS with shape generators
+	- toner or inject 3d printer experiments
+	- adjuster for the 3d depth sensor
+	- trianglular gears
+	- embosser
+	- printer table auto level wizard
+	- tinkercad SG jointer part (different top and bottom profile + simple rotation of profiles)
+	- filament guide (model built)
 	
