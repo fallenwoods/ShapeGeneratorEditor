@@ -1,9 +1,8 @@
 TODO:
-
 	- allow show edges, normals and mesh
 	- modify the extrusion editor to create closed shapes for open ended figures (dual layer)
-	- get my generators working
-	- get CGS with shape generators
+	- get my generators working in Tinkercad
+	- get CSG with shape generators
 	- toner or inject 3d printer experiments
 	- adjuster for the 3d depth sensor
 	- trianglular gears
@@ -11,4 +10,6 @@ TODO:
 	- printer table auto level wizard
 	- tinkercad SG jointer part (different top and bottom profile + simple rotation of profiles)
 	- filament guide (model built)
+	- write software to get the screw turns to level the table
+	- have extruder create interior
 	

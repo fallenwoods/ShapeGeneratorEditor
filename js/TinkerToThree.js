@@ -76,10 +76,17 @@ Core.Solid = function (){
 Core.Solid.prototype = {
 }
 Core.Solid.make = function (mesh3d){
+
 		mesh3d.geometry.computeBoundingBox();
 		mesh3d.geometry.computeFaceNormals();
 		mesh3d.geometry.rotateX(-Math.PI/2);	// three.js defaults to Y as up, tinkercad uses Z
+		
+		if(mesh3d.debugGeo) {
+			mesh3d.debugGeo.rotateX(-Math.PI/2);	// three.js defaults to Y as up, tinkercad uses Z
+			mesh3d.geometry.debug = mesh3d.debugGeo
+		}
 		return mesh3d.geometry;
+
 }
 Core.Solid.extrude = function (path2dAry,height){
 		var geo;
@@ -106,6 +113,7 @@ Core.Solid.extrude = function (path2dAry,height){
 
 Core.Mesh3D = function(){
 	this.geometry = new THREE.Geometry();
+	this.debugGeo;
 
 }
 Core.Mesh3D.prototype = {
@@ -121,11 +129,29 @@ Core.Mesh3D.prototype = {
 		this.geometry.faces.push( new THREE.Face3( first, first+1,first+2 ) );
 		return this;		//chainable
 	},
+	/*
 	computeExtras:function(){
 		this.geometry.computeBoundingBox();
 		this.geometry.computeFaceNormals();
+	},
+	*/
+	combine:function(other){
+		if(other != this) 
+			this.geometry.merge(other.geometry);
+		else
+			this.geometry.mergeVertices();
+	},
+	debugLines:function(pts){		// extension to Tinkercad API, use only during debug
+		this.debugGeo = this.debugGeo || new THREE.Geometry();
+		for(var i =0; i< pts.length;i++){
+			this.debugGeo.vertices.push(new THREE.Vector3( pts[i][0],pts[i][1],pts[i][2] ))
+		}
+
+		return this;		//chainable
 	}
+
 }
+
 
 Core.Path2D = function (){
 	this.path = new THREE.Shape();		// Shape is a Path subclass that is compatible with the Extruder class
@@ -189,4 +215,13 @@ Core.Matrix3D.prototype = {
 	transform:function(matrix){this.transform.multiply(matrix);return this;}
 }
 
+
+
 //export Core;
+
+var Mesh3D = Core.Mesh3D;
+//var Path2D = Core.Path2D;
+var Matrix3D = Core.Matrix3D;
+var Tess = Core.Tess;
+var Solid = Core.Solid;
+var Debug = Core.Debug;

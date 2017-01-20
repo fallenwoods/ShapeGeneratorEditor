@@ -10,11 +10,7 @@ var ceil = Math.ceil;
 var floor = Math.floor;
 var max = Math.max;
 
-var Mesh3D = Core.Mesh3D;
-//var Path2D = Core.Path2D;
-var Matrix3D = Core.Matrix3D;
-var Tess = Core.Tess;
-var Solid = Core.Solid;
+
 
 /*
 Params
@@ -93,90 +89,113 @@ u:{
 
 
 
-
+function shapeGeneratorDefaults(callback) {
 var params = [
 	{
-		type		: "list",
-		id			: "standard",
-		displayName	: "Standard (Us or Metric)",
-		listLabels	: ["US","Metric"],
-		listValues	: ["u","m"],
-		default	: "m"
+		"type"			: "list",
+		"id"			: "standard",
+		"displayName"	: "Standard (Us or Metric)",
+		"listLabels"	: ["US","Metric"],
+		"listValues"	: ["u","m"],
+		"default"		: "m"
 	},
 	{
-		type		: "list",
-		id			: "metrixScrewSize",
-		displayName	: "Metrix Screw size",
-		listLabels	: ["M4","M5","M6"],
-		listValues	: ["M4","M5","M6"],
-		default		: "M5"
+		"type"			: "list",
+		"id"			: "metrixScrewSize",
+		"displayName"	: "Metrix Screw size",
+		"listLabels"	: ["M4","M5","M6"],
+		"listValues"	: ["M4","M5","M6"],
+		"default"		: "M5"
 	},
 	{
-		type		: "list",
-		id			: "usScrewSize",
-		displayName	: "US Screw size",
-		listLabels	: ["M4","M5","M6"],
-		listValues	: ["M4","M5","M6"],
-		default		: 'us1-4'
+		"type"			: "list",
+		"id"			: "usScrewSize",
+		"displayName"	: "US Screw size",
+		"listLabels"	: ["M4","M5","M6"],
+		"listValues"	: ["M4","M5","M6"],
+		"default"		: 'us1-4'
 	},
 	{
-		type		: "list",
-		id			: "coarseness",
-		displayName	: "Size Specifies",
-		listLabels	: ["Coarse","Fine","Extra Fine"],
-		listValues	: ["coarse","fine","extraFine"],
-		default		: "coarse"
+		"type"			: "list",
+		"id"			: "coarseness",
+		"displayName"	: "Size Specifies",
+		"listLabels"	: ["Coarse","Fine","Extra Fine"],
+		"listValues"	: ["coarse","fine","extraFine"],
+		"default"		: "coarse"
 	},
-	{ 	id			: "length", 
-		displayName	: "Length",
-	 	type		: "int",
-	 	rangeMin	: 0,
-	 	rangeMax	: 100,
-	 	default		: 20
+	{ 	
+		"id"			: "length", 
+		"displayName"	: "Length",
+		"type"			: "int",
+		"rangeMin"		: 0,
+		"rangeMax"		: 100,
+		"default"		: 20
 	}
-]
+];
 
-var foo = function (){
-	
-	var result = [];
+
 	for (var prop in screwTable.m){
-		result.push(screwTable.m[prop].label)}
-	params[1].listLabels = params[1].listValues = result;
-	
-	var labels = [];
-	var values = [];
-	for (var prop in screwTable.u){
-		labels.push(screwTable.u[prop].label);
-		values.push(prop);
+		params[1].listLabels.push(screwTable.m[prop].label);
+		params[1].listValues.push(prop);
 	}
-	params[2].listLabels = labels;
-	params[2].listValues = values;
-	
-}();
 
-var rawParams = params;
+	for (var prop in screwTable.u){
+		params[2].listLabels.push(screwTable.u[prop].label);
+		params[2].listValues.push(prop);
+	}
+	
+	callback(params);
+}
 
 var mmPerInch = 25.4;
-function process(params){
+function shapeGeneratorEvaluate(params, callback) {
 	var metrixScrewSize = params["metrixScrewSize"];			// from drop down
 	var usScrewSize = params["usScrewSize"];			// from drop down
 	var standard = params["standard"];		// us or metric
 	var coarseness = params["coarseness"];	// coarse, fine or extraFine
 	var l = params["length"];				// inches or mm
+	var fudge = 0.1;						// added to major radius to provide clearance for screw. Derived empically
+	
+		function Polyline3D(){
+		this.pts=[];
+		this.mat = new Matrix3D();
+		if(arguments.length === 0) return;
+		var argAry = typeof arguments[0][0] === 'object' ? Array.prototype.slice.call(arguments[0]) : Array.prototype.slice.call(arguments);
+		if(argAry.length>0) argAry.forEach(function(el,i){
+			this.pts.push(new THREE.Vector3(argAry[i][0],argAry[i][1],argAry[i][2]));
+			}.bind(this));
+	}
+	Polyline3D.prototype = {
+		copy:function(other){
+			this.pts = other.pts.slice();
+			this.mat.transform.elements = other.mat.transform.elements.slice();
+			return this;
+		},
+		clone: function(){return new Polyline3D().copy(this);},
+		translation: function(x,y,z){this.mat.translation(x,y,z); return this;},
+		rotationX:function(a){this.mat.rotationX(a); return this;},
+		rotationY:function(a){this.mat.rotationY(a); return this;},
+		rotationZ:function(a){this.mat.rotationZ(a); return this;},
+		points:function(){
+			 return this.pts.map(function(el,i){
+				var tmp = el.clone().applyMatrix4(this.mat.transform);
+				 return [tmp.x,tmp.y,tmp.z];}.bind(this));
+		}
+	};
 
 	var p,d;
 	if(standard==='u'){
 		p = (1/screwTable[standard][usScrewSize][coarseness]) * mmPerInch;	// pitch convert Threads per inch to inch per thread and then to mm
-		d = screwTable[standard][usScrewSize].diameter * mmPerInch;		// diameter (Dmaj) in mm
+		d = screwTable[standard][usScrewSize].diameter * mmPerInch + fudge;		// diameter (Dmaj) in mm
 	} else {
 		p = screwTable[standard][metrixScrewSize][coarseness];	// pitch
-		d = screwTable[standard][metrixScrewSize].diameter;		// diameter (Dmaj)
+		d = screwTable[standard][metrixScrewSize].diameter + fudge;		// diameter (Dmaj)
 	}
 	var h = p * cos(2*PI/12);		// cos(30) degrees. Height from reference bottom to reference top, top and bottom are cut off for real thread
 
 	// See https://en.wikipedia.org/wiki/ISO_metric_screw_thread
 	var profile = new Polyline3D(				//external (e.g. bolt or screw) thread profile (make this a hole to create a nut or socket)
-		[0,0,0],
+		//[0,0,0],
 		[p*1/4,0,0],
 		[p*(1/4+5/16),h*5/8,0],
 		[p*(1/4+5/16+1/8),h*5/8,0],
@@ -186,7 +205,7 @@ function process(params){
 	var yOffset = d/2 - (h*5/8);		// distance from center to base of tooth
 	var rotations = ceil(l/p);				// pitch is length per rotation, force this to an int to make the end cap easier
 	l = rotations * p;					// a bit of a cheat here, adjust length so it's an integral of the pitch
-	var steps = max(20, floor(d * PI));		// one step per mm of circumferance, but not less than 20
+	var steps = max(50, floor(d * PI));		// one step per mm of circumferance, but not less than 20
 
 	// fixme - figure out the end caps
 	//var prior = profile.clone().translation(0,0,0);//debug (0,yOffset,0);
@@ -195,109 +214,55 @@ function process(params){
 	var deltaX = p/steps;
 	var mesh = new Mesh3D();
 	
-	// start cap
-	var cCapCorner = new Polyline3D ([0,yOffset,0]);
-	var cThreadCorner = new Polyline3D ([0,yOffset,0]);
-	var cCapCornerPts,cThreadCornerPts;
-	var pCapCornerPts=cCapCorner.points();
-	var pThreadCornerPts=cThreadCorner.points();
-	
-	var firstPts = prior.points();
-	mesh.triangle(firstPts[1],firstPts[2],firstPts[3]);		// cap the start of the thread
-	mesh.triangle(firstPts[1],firstPts[2],firstPts[3]);
-	mesh.triangle(firstPts[1],firstPts[3],firstPts[4]);
-	
-	for(var s = 0; s < steps; s++){
-
-		cCapCorner.rotationX(deltaA);		//rotate but don't translation;
-		cThreadCorner.rotationX(deltaA).translation(deltaX,0,0);	// rotate and translation
-		
-		cCapCornerPts = cCapCorner.points();
-		cThreadCornerPts = cThreadCorner.points();
-		
-		mesh.triangle([0,0,0],pCapCornerPts[0],cCapCornerPts[0]);
-		mesh.triangle(pCapCornerPts[0],pThreadCornerPts[0],cCapCornerPts[0]);
-		mesh.triangle(cCapCornerPts[0],pThreadCornerPts[0],cThreadCornerPts[0]);
-		mesh.triangle([0,0,0],pThreadCornerPts[0],cThreadCornerPts[0]);		//fixme - for debug only
-		
-		pCapCornerPts = cCapCornerPts;
-		pThreadCornerPts = cThreadCornerPts;
+	// create a profile for the whole screw w/ caps
+	//var fullProfile = [[0,0,0],[0,yOffset,0]];
+	var fullProfile = profile.points();
+	for(var i = 1; i< rotations-1;i++){
+		var oneToothPts = profile.translation(p,0,0).points();
+		fullProfile = fullProfile.concat(oneToothPts);
 	}
+	//fullProfile.push([l,yOffset,0]);
+	//fullProfile.push([l,0,0]);
+	
+
 	
 	// thread
 	//*
-	var current = prior.clone();
-	for(var s = 0; s < (rotations-1)*steps; s++){
-		current.rotationX(deltaA).translation(deltaX,0,0);
-		makeMesh(mesh,prior,current);
-		prior.copy(current);
-	}
-	var lastPts = prior.points();
-	mesh.triangle(lastPts[1],lastPts[2],lastPts[3]);		// cap the end of the thread
-	mesh.triangle(lastPts[1],lastPts[2],lastPts[3]);
-	mesh.triangle(lastPts[1],lastPts[3],lastPts[4]);
-	//* /
-	
-	// end cap
-	var cCapCorner = new Polyline3D ([l,yOffset,0]);
-	var cThreadCorner = new Polyline3D ([l-p,yOffset,0]);
-	var cCapCornerPts,cThreadCornerPts;
-	var pCapCornerPts=cCapCorner.points();
-	var pThreadCornerPts=cThreadCorner.points();
-	
+	var startCap = new Polyline3D([0,0,0],[0,yOffset,0]);
+	var endCap = new Polyline3D([l,yOffset,0],[l,0,0]);
+	var priorPts = startCap.points().concat(fullProfile).concat(endCap.points());
+	//var firstPts = priorPts.slice();
+	var current =new Polyline3D(fullProfile);
 	for(var s = 0; s < steps; s++){
-
-		cCapCorner.rotationX(deltaA);		//rotate but don't translation;
-		cThreadCorner.rotationX(deltaA).translation(deltaX,0,0);	// rotate and translation
-		
-		cCapCornerPts = cCapCorner.points();
-		cThreadCornerPts = cThreadCorner.points();
-		
-		mesh.triangle([l,0,0],pCapCornerPts[0],cCapCornerPts[0]);
-		mesh.triangle(pCapCornerPts[0],pThreadCornerPts[0],cCapCornerPts[0]);
-		mesh.triangle(cCapCornerPts[0],pThreadCornerPts[0],cThreadCornerPts[0]);
-		mesh.triangle([l,0,0],pThreadCornerPts[0],cThreadCornerPts[0]);		//fixme - for debug only
-		
-		pCapCornerPts = cCapCornerPts;
-		pThreadCornerPts = cThreadCornerPts;
+		current.rotationX(deltaA).translation(deltaX,0,0);
+		startCap.rotationX(deltaA);
+		endCap.rotationX(deltaA);
+		currentPts = startCap.points().concat(current.points()).concat(endCap.points());
+		makeMesh(mesh,priorPts,currentPts);
+		mesh.debugLines(priorPts);
+		priorPts = currentPts;
 	}
+	//makeMesh(mesh,currentPts,firstPts)
+	var lastPts = priorPts;
+	var len = priorPts.length-6;		// 2 extra for the end cap
+	mesh.triangle(lastPts[len],lastPts[len+2],lastPts[len+1]);		// cap the end of the thread
+	mesh.triangle(lastPts[len],lastPts[len+3],lastPts[len+2]);
+	
+	mesh.triangle(fullProfile[0],fullProfile[1],fullProfile[2]);		// cap the start of the thread
+	mesh.triangle(fullProfile[0],fullProfile[2],fullProfile[3]);
+	//* /
 
 	
-	
-//	mesh.combine(mesh);
-	return Solid.make(mesh);
-}
-function Polyline3D(){
-	this.pts=[];
-	this.mat = new Matrix3D();
-	if(arguments.length === 0) return;
-	var argAry = typeof arguments[0][0] === 'object' ? Array.prototype.slice.call(arguments[0]) : Array.prototype.slice.call(arguments);
-	if(argAry.length>0) argAry.forEach(function(el,i){
-		this.pts.push(new THREE.Vector3(argAry[i][0],argAry[i][1],argAry[i][2]))
-		}.bind(this));
-}
-Polyline3D.prototype = {
-	copy:function(other){
-		this.pts = other.pts.slice();
-		this.mat.transform.elements = other.mat.transform.elements.slice();
-		return this;
-	},
-	clone: function(){return new Polyline3D().copy(this);},
-	translation: function(x,y,z){this.mat.translation(x,y,z); return this;},
-	rotationX:function(a){this.mat.rotationX(a); return this;},
-	rotationY:function(a){this.mat.rotationY(a); return this;},
-	rotationZ:function(a){this.mat.rotationZ(a); return this;},
-	points:function(){
-		 return this.pts.map(function(el,i){
-		 	var tmp = el.clone().applyMatrix4(this.mat.transform);
-			 return [tmp.x,tmp.y,tmp.z];}.bind(this));
-	}
-}
-function makeMesh(mesh,prior,current){
-	var priorPts = prior.points();	// gets transformed points
-	var currentPts = current.points();
-	for(var i = 0; i < priorPts.length-1;i++){
-		mesh.triangle(priorPts[i],priorPts[i+1],currentPts[i]);
-		mesh.triangle(priorPts[i+1],currentPts[i+1],currentPts[i]);
+	//mesh.combine(mesh);
+	callback(Solid.make(mesh));
+
+
+	function makeMesh(mesh,priorPts,currentPts){
+		//var priorPts = prior.points();	// gets transformed points
+		//var currentPts = current.points();
+		for(var i = 0; i < priorPts.length-1;i++){
+			mesh.triangle(priorPts[i],currentPts[i],priorPts[i+1]);
+			mesh.triangle(priorPts[i+1],currentPts[i],currentPts[i+1]);
+		}
 	}
 }
